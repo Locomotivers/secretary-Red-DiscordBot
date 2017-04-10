@@ -21,7 +21,7 @@ class Op:
                         "updated": ""
                         }
 
-    def add_fund(self, user, amount, comment):
+    def mange_fund(self, user, amount, comment):
         server = user.server
         timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -29,6 +29,7 @@ class Op:
         self.f_hist["balance"] += amount
         self.f_hist["comment"] = comment
         self.f_hist["updated"] = timestamp
+
 
         self.save_hist()
 
@@ -91,17 +92,9 @@ class Secretary:
         self.op = Op(bot, "data/secretary/fund.json",
         "data/secretary/fundrequest.json")
 
-    # @commands.group(name="fund", pass_context=True)
-    # async def _fund(self, ctx):
-    #     """Fund operations"""
-    #     if ctx.invoked_subcommand is None:
-    #         await send_cmd_help(ctx)
-
-    # @_fund.command(pass_context=True, no_pm=True)
-    #@checks.admin_or_permissions(administrator=True)
-
     @commands.command(pass_context=True, no_pm=True)
-    async def fund(self, ctx, amount : SetParser, comment: str):
+    @check.mod_or_permissions(administrator=True)
+    async def fund(self, ctx, amount : SetParser):
         """Sets, Adds, Substracts the fund
 
         Examples:
@@ -110,21 +103,22 @@ class Secretary:
             fund -100 "I dont like it" - substracts 100
         """
         author = ctx.message.author
+        comment = commentfilter(ctx)
 
         if amount.operation == "add":
-            self.op.add_fund(author, amount.sum, comment)
+            self.op.mange_fund(author, amount.operation, amount.sum, comment)
             fHLogger.info("{}({}) added {} silver because {} ".format(
                             author.name, author.id, amount.sum, comment))
             await self.bot.say("{}({}) added {} silver because {} ".format(
                                 author.name, author.id, amount.sum, comment))
         elif amount.operation == "sub":
-            self.op.sub_fund(author, amount.sum, comment)
+            self.op.mange_fund(author, amount.operation amount.sum, comment)
             fHLogger.info("{}({}) subtracts {} silver because {} ".format(
                             author.name, author.id, amount.sum, comment))
             await self.bot.say("{}({}) subtracts {} silver because {} ".format(
                                 author.name, author.id, amount.sum, comment))
         elif amount.operation == "set":
-            self.op.set_fund(author, amount.sum, comment)
+            self.op.mange_fund(author, amount.sum, comment)
             fHLogger.info("{}({}) set {} silver because {} ".format(
                             author.name, author.id, amount.sum, comment))
             await self.bot.say("{}({}) set {} silver because {} ".format(
@@ -132,7 +126,42 @@ class Secretary:
 
     @commands.command(pass_context=True, no_pm=True)
     async def ckbal(self):
-      await self.bot.say("{} silver currently left towards to island fund.".format(self.op.get_balance()))
+      await self.bot.say("{} silver currently left towards to island fund.".
+      format(self.op.get_balance()))
+
+    @commands.command(pass_context=True, no_pm=True)
+    async def freq(self, ctx, amount : SetParser, comment : str)
+        """Request fund toward island
+        This request has to be accepted manually, so please be patient.
+
+        Examples:
+            freq 100 or
+            freq +100       - Request to deposit the fund.
+            freq -100       - Request to withdraw the fund.
+        """
+        author = ctx.message.author
+
+        if amount.operation == "add" or amount.operation == "set":
+            self.op.add_fund(author, amount.sum, comment)
+            fRLogger.info("{}({}) added {} silver because {} ".format(
+                            author.name, author.id, amount.sum, comment))
+            await self.bot.say("{}({}) added {} silver because {} ".format(
+                                author.name, author.id, amount.sum, comment))
+        elif amount.operation == "sub":
+            self.op.sub_fund(author, amount.sum, comment)
+            fRLogger.info("{}({}) subtracts {} silver because {} ".format(
+                            author.name, author.id, amount.sum, comment))
+            await self.bot.say("{}({}) subtracts {} silver because {} ".format(
+                                author.name, author.id, amount.sum, comment))
+
+    def commentfilter(msg):
+        msg = message.content.split(" ").slice(1);
+        command = args[0];
+        amount = args[1];
+        comment = "";
+        for x in xrange(2,len(args)):
+            comment += args[x];
+        return comment
 
 def check_folders():
     if not os.path.exists("data/secretary"):
@@ -144,9 +173,6 @@ def check_files(f):
     if not dataIO.is_valid_json(fpath):
         print("Creating empty {}.json...".format(f))
         dataIO.save_json(fpath, {})
-
-
-
 
 def setup(bot):
     global fHLogger
