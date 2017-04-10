@@ -26,36 +26,16 @@ class Op:
         timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
 
         self.f_hist["name"] = user.name
-        self.f_hist["balance"] += amount
         self.f_hist["comment"] = comment
         self.f_hist["updated"] = timestamp
 
+        if amount.operation == "add":
+            self.f_hist["balance"] += amount
+        elif amount.operation == "sub":
+            self.f_hist["balance"] -= amount
+        elif amount.operation == "set":
+            self.f_hist["balance"] = amount
 
-        self.save_hist()
-
-    def sub_fund(self, user, amount, comment):
-        server = user.server
-        timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-
-        self.f_hist["name"] = user.name
-        self.f_hist["balance"] -= amount
-        self.f_hist["comment"] = comment
-        self.f_hist["updated"] = timestamp
-
-        self.save_hist()
-
-    def set_fund(self, user, amount, comment):
-        server = user.server
-        timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-
-        self.f_hist["name"] = user.name
-        self.f_hist["balance"] = amount
-        self.f_hist["comment"] = comment
-        self.f_hist["updated"] = timestamp
-
-        self.save_hist()
-
-    def save_hist(self):
         dataIO.save_json("data/secretary/fund.json", self.f_hist)
 
     def get_balance(self):
@@ -118,7 +98,7 @@ class Secretary:
             await self.bot.say("{}({}) subtracts {} silver because {} ".format(
                                 author.name, author.id, amount.sum, comment))
         elif amount.operation == "set":
-            self.op.mange_fund(author, amount.sum, comment)
+            self.op.mange_fund(author, amount.operation, amount.sum, comment)
             fHLogger.info("{}({}) set {} silver because {} ".format(
                             author.name, author.id, amount.sum, comment))
             await self.bot.say("{}({}) set {} silver because {} ".format(
