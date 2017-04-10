@@ -1,10 +1,9 @@
 from discord.ext import commands
 from .utils.dataIO import dataIO
+from .utils.dataIO import get_value
 from .utils import checks
 from __main__ import user_allowed
-from __main__ import send_cmd_help
 from datetime import datetime
-from .utils.dataIO import get_value
 import time
 import os
 import re
@@ -132,7 +131,7 @@ class Secretary:
                                 author.name, author.id, amount.sum, comment))
 
     @commands.command(pass_context=True, no_pm=True)
-    async def ckbal(self):                                
+    async def ckbal(self):
       await self.bot.say("{} silver currently left towards to island fund.".format(self.op.get_balance()))
 
 def check_folders():
