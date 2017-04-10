@@ -13,15 +13,20 @@ class Op:
 
     def __init__(self, bot, fHL_path, fR_Path):
         self.f_hist = dataIO.load_json(fHL_path)
-        #self.f_req = dataIO.load_json(fR_path) #TODO
+        self.f_req = dataIO.load_json(fR_path)
         self.bot = bot
         self.f_hist =   {"name": "",
                         "balance": 0,
                         "comment": "",
                         "updated": ""
                         }
+        self.f_req =    {"name": "",
+                        "balance": 0,
+                        "comment": "",
+                        "updated": ""
+                        }
 
-    def mange_fund(self, user, amount, comment):
+    def mange_fund(self, user, _op, amount, comment):
         server = user.server
         timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -29,17 +34,28 @@ class Op:
         self.f_hist["comment"] = comment
         self.f_hist["updated"] = timestamp
 
-        if amount.operation == "add":
+        if _op == "add":
             self.f_hist["balance"] += amount
-        elif amount.operation == "sub":
+        elif _op == "sub":
             self.f_hist["balance"] -= amount
-        elif amount.operation == "set":
+        elif _op == "set":
             self.f_hist["balance"] = amount
 
         dataIO.save_json("data/secretary/fund.json", self.f_hist)
 
-    def get_balance(self):
-        return get_value("data/secretary/fund.json","balance")
+    def manage_request(self, user, _opm amount, comment):
+        server = user.server
+        timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+
+    def comment_filter(self, msg):
+        msg = message.content.split(" ").slice(1);
+        command = args[0];
+        amount = args[1];
+        comment = "";
+        for x in xrange(2,len(args)):
+            comment += args[x];
+        return comment
+
 
 
 class SetParser:
@@ -78,27 +94,26 @@ class Secretary:
         """Sets, Adds, Substracts the fund
 
         Examples:
-            fund 100 "I Like it" - sets 100
-            fund +100 "I Like it" - adds 100
-            fund -100 "I dont like it" - substracts 100
+            fund 100 I Like it - sets 100
+            fund +100 I Like it - adds 100
+            fund -100 I dont like it - substracts 100
         """
         author = ctx.message.author
-        comment = commentfilter(ctx)
+        comment = self.op.comment_filter(ctx)
+
+        self.op.mange_fund(author, amount.operation, amount.sum, comment)
 
         if amount.operation == "add":
-            self.op.mange_fund(author, amount.operation, amount.sum, comment)
             fHLogger.info("{}({}) added {} silver because {} ".format(
                             author.name, author.id, amount.sum, comment))
             await self.bot.say("{}({}) added {} silver because {} ".format(
                                 author.name, author.id, amount.sum, comment))
         elif amount.operation == "sub":
-            self.op.mange_fund(author, amount.operation amount.sum, comment)
             fHLogger.info("{}({}) subtracts {} silver because {} ".format(
                             author.name, author.id, amount.sum, comment))
             await self.bot.say("{}({}) subtracts {} silver because {} ".format(
                                 author.name, author.id, amount.sum, comment))
         elif amount.operation == "set":
-            self.op.mange_fund(author, amount.operation, amount.sum, comment)
             fHLogger.info("{}({}) set {} silver because {} ".format(
                             author.name, author.id, amount.sum, comment))
             await self.bot.say("{}({}) set {} silver because {} ".format(
@@ -107,41 +122,34 @@ class Secretary:
     @commands.command(pass_context=True, no_pm=True)
     async def ckbal(self):
       await self.bot.say("{} silver currently left towards to island fund.".
-      format(self.op.get_balance()))
+      format(get_value("data/secretary/fund.json", "balance")))
 
     @commands.command(pass_context=True, no_pm=True)
-    async def freq(self, ctx, amount : SetParser, comment : str)
+    async def freq(self, ctx, amount : SetParser)
         """Request fund toward island
         This request has to be accepted manually, so please be patient.
 
         Examples:
-            freq 100 or
-            freq +100       - Request to deposit the fund.
-            freq -100       - Request to withdraw the fund.
+            freq 100 comment or
+            freq +100 comment - Request to deposit the fund.
+            freq -100 comment - Request to withdraw the fund.
         """
         author = ctx.message.author
+        comment = self.op.comment_filter(ctx)
 
         if amount.operation == "add" or amount.operation == "set":
-            self.op.add_fund(author, amount.sum, comment)
-            fRLogger.info("{}({}) added {} silver because {} ".format(
+            self.op.manage_request(author, amount.sum, comment)
+            fRLogger.info("{}({}) requested {} silver to be deposited because {} ".format(
                             author.name, author.id, amount.sum, comment))
-            await self.bot.say("{}({}) added {} silver because {} ".format(
+            await self.bot.say("{}({}) requested {} silver be withdrawed because {} ".format(
                                 author.name, author.id, amount.sum, comment))
         elif amount.operation == "sub":
-            self.op.sub_fund(author, amount.sum, comment)
+            self.op.manage_request(author, amount.sum, comment)
             fRLogger.info("{}({}) subtracts {} silver because {} ".format(
                             author.name, author.id, amount.sum, comment))
             await self.bot.say("{}({}) subtracts {} silver because {} ".format(
                                 author.name, author.id, amount.sum, comment))
 
-    def commentfilter(msg):
-        msg = message.content.split(" ").slice(1);
-        command = args[0];
-        amount = args[1];
-        comment = "";
-        for x in xrange(2,len(args)):
-            comment += args[x];
-        return comment
 
 def check_folders():
     if not os.path.exists("data/secretary"):
