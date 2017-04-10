@@ -20,11 +20,6 @@ class Op:
                         "comment": "",
                         "updated": ""
                         }
-        self.f_req =    {"name": "",
-                        "balance": 0,
-                        "comment": "",
-                        "updated": ""
-                        }
 
     def mange_fund(self, user, _op, amount, comment):
         server = user.server
@@ -43,9 +38,35 @@ class Op:
 
         dataIO.save_json("data/secretary/fund.json", self.f_hist)
 
-    def manage_request(self, user, _opm amount, comment):
+    def recieve_request(self, user, _op, amount, comment):
         server = user.server
         timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+
+        if user.id == get_value("data/secretary/fundrequest.json", user.id):
+            if _op == "add" or _op == "set":
+                if self.f_req[user.id]["balance"] < 0:
+                    self.f_req[user.id]["balance"]  = amount
+                else:
+                    self.f_req[user.id]["balance"]  += amount
+                self.f_req[user.id]["type"]  = "deposit"
+            else:
+                if self.f_req[user.id]["balance"] > 0:
+                    self.f_req[user.id]["balance"]  = amount
+                else:
+                    self.f_req[user.id]["balance"]  += amount
+                self.f_req[user.id]["type"]  = "withdraw"
+            self.f_req[user.id]["comment"]  = comment
+            self.f_req[user.id]["updated"]  = timestamp
+
+        else:
+            self.f_req[user.id] =   {"name" : user.name,
+                                    "amount": amount,
+                                    "type": "deposit" if (_op == "add") or (_op == "set") else "withdraw",
+                                    "comment": comment,
+                                    "updated": timestamp
+                                    }
+
+        dataIO.save_json("data/secretary/fundrequest.json", self.f_req)
 
     def comment_filter(self, msg):
         msg = message.content.split(" ").slice(1);
@@ -128,6 +149,7 @@ class Secretary:
     async def freq(self, ctx, amount : SetParser)
         """Request fund toward island
         This request has to be accepted manually, so please be patient.
+        Also any withdrawing request will be ignored by unapproved desposit request!
 
         Examples:
             freq 100 comment or
@@ -138,17 +160,17 @@ class Secretary:
         comment = self.op.comment_filter(ctx)
 
         if amount.operation == "add" or amount.operation == "set":
-            self.op.manage_request(author, amount.sum, comment)
-            fRLogger.info("{}({}) requested {} silver to be deposited because {} ".format(
-                            author.name, author.id, amount.sum, comment))
-            await self.bot.say("{}({}) requested {} silver be withdrawed because {} ".format(
-                                author.name, author.id, amount.sum, comment))
+            self.op.recieve_request(author, amount.operation, amount.sum, comment)
+            fRLogger.info("{}({}) has requested {} silver(s) to be deposited because {} "
+            .format(author.name, author.id, amount.sum, comment))
+            await self.bot.say("{}({}) has requested {} silver(s) be deposited because {} "
+            .format(author.name, author.id, amount.sum, comment))
         elif amount.operation == "sub":
-            self.op.manage_request(author, amount.sum, comment)
-            fRLogger.info("{}({}) subtracts {} silver because {} ".format(
-                            author.name, author.id, amount.sum, comment))
-            await self.bot.say("{}({}) subtracts {} silver because {} ".format(
-                                author.name, author.id, amount.sum, comment))
+            self.op.recieve_request(author, amount.sum, comment)
+            fRLogger.info(("{}({}) has requested {} silver(s) to be withdrawed because {} "
+            .format(author.name, author.id, amount.operation, amount.sum, comment))
+            await self.bot.say("{}({}) has requested {} silver(s) to be withdrawed because {} "
+            .format(author.name, author.id, amount.sum, comment))
 
 
 def check_folders():
